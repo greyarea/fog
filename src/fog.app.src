@@ -1,0 +1,8 @@
+%% -*- mode: erlang -*-
+
+{application, fog,
+ [{description, "Facebook Open Graph"},
+  {vsn, git},
+  {id, "fog"},
+  {applications, [kernel, stdlib]}]}.
+
