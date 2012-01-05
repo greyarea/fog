@@ -46,7 +46,7 @@ ensure_started(App) ->
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-%fog:request("BAADvkLCXkdQBANL9qkYrxldTLPGqbpuvaeGStAZC7PW9g8J7ZC3dWV5cJW7dMZCAkcA1VnYrxxe6zD9Ne6dzsqm3U9XOOM48WyJzBORHRhcajAY0zVS", "me/friends", [], get).
+%fog:request("BAADvkLCXkdQBANL9qkYrxldTLPGqbpuvaeGStAZC7PW9g8J7ZC3dWV5cJW7dMZCAkcA1VnYrxxe6zD9Ne6dzsqm3U9XOOM48WyJzBORHRhcajAY0zVS", "me/friends", [{fields, "name,picture"}], get).
 request(AccessToken, GraphPath, Params, HTTPMethod) ->
     gen_server:call(?MODULE, {request, AccessToken, GraphPath, Params, HTTPMethod}).
 
@@ -108,7 +108,7 @@ handle_info({ibrowse_async_response, Id, Body}, State) ->
             State#state.requests;
         Request ->
             {Id, From, Props} = Request,
-            Props2 = props:set(<<"body">>, Body, Props),
+            Props2 = props:set(<<"body">>, props:from_mochijson2(mochijson2:decode(Body)), Props),
             Request2 = {Id, From, Props2}, 
             lists:keyreplace(Id, 1, State#state.requests, Request2) 
     end, 
@@ -123,7 +123,14 @@ handle_info({ibrowse_async_response_end, Id}, State) ->
             State#state.requests;
         {value, Request, Rest} ->
             {Id, From, Props} = Request,
-            gen_server:reply(From, {ok, Props}),
+
+            case props:get(<<"retcode">>, Props) of
+                "200" ->
+                    gen_server:reply(From, {ok, Props});
+                Other ->
+                    gen_server:reply(From, {error, Other, Props})
+            end, 
+
             Rest
     end, 
 
