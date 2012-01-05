@@ -1,3 +1,5 @@
+%% @doc Facebook Open Graph client. 
+%% Check out http://developers.facebook.com/docs/reference/api/ for graph requests
 -module(fog).
 -behaviour(gen_server).
 
@@ -16,8 +18,7 @@
         code_change/3]).
 
 -record(state, { 
-        requests :: list(), 
-        partial_responses :: list()        
+        requests :: list() 
     }).
 
 -type state() :: #state{}.
@@ -46,7 +47,9 @@ ensure_started(App) ->
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-%fog:request("BAADvkLCXkdQBANL9qkYrxldTLPGqbpuvaeGStAZC7PW9g8J7ZC3dWV5cJW7dMZCAkcA1VnYrxxe6zD9Ne6dzsqm3U9XOOM48WyJzBORHRhcajAY0zVS", "me/friends", [{fields, "name,picture"}], get).
+%% @doc the main function for making graph requests. See http://developers.facebook.com/docs/reference/api/ for graph usage
+%% @example fog:request(<<"BAADvkLCXkdQBANL9qkYrxldTLPGqbpuvaeGStAZC7PW9g8J7ZC3dWV5cJW7dMZCAkcA1VnYrxxe6zD9Ne6dzsqm3U9XOOM48WyJzBORHRhcajAY0zVS">>, "me/friends", [{fields, "name,picture"}], get).
+-spec request(binary(), string(), proplist:proplist(), get | post | delete) -> {ok, props:props()} | {error, string(), props:props()}.
 request(AccessToken, GraphPath, Params, HTTPMethod) ->
     gen_server:call(?MODULE, {request, AccessToken, GraphPath, Params, HTTPMethod}).
 
@@ -54,7 +57,7 @@ request(AccessToken, GraphPath, Params, HTTPMethod) ->
 -spec init(frl_types:config()) -> {ok, state()} | {stop, term()}.
 init(_Config) ->
 
-    {ok, #state { requests = [], partial_responses = [] }}.
+    {ok, #state { requests = [] }}.
 
 %% @doc Handle synchronous requests.
 -spec handle_call(term(), {pid(), term()}, state()) -> {stop, term(), state()}.
@@ -86,6 +89,8 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Request, State) ->
     {stop, unknown_cast, State}.
 
+%% @doc Plain message handling callback.
+-spec handle_info(term(), state()) -> {stop, term(), state()} | {noreply, state()}.
 handle_info({ibrowse_async_headers, Id, RetCode, Headers}, State) ->
     NewRequests = case lists:keyfind(Id, 1, State#state.requests) of
         false ->
@@ -119,7 +124,7 @@ handle_info({ibrowse_async_response, Id, Body}, State) ->
 handle_info({ibrowse_async_response_end, Id}, State) ->
     NewRequests = case lists:keytake(Id, 1, State#state.requests) of
         false ->
-            error_logger:info_msg("Body: Couldn't find ~p", [Id]), 
+            error_logger:info_msg("End: Couldn't find ~p", [Id]), 
             State#state.requests;
         {value, Request, Rest} ->
             {Id, From, Props} = Request,
