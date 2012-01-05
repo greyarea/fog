@@ -17,13 +17,9 @@ start_link() ->
 %% @doc Supervisor behaviour entry point.
 -spec init(term()) -> {ok, {{supervisor:strategy(), integer(), integer()}, [supervisor:child_spec()]}}.
 init(_Config) ->
-
-    Fog = {frl_listener,
-                {fog, start_link, [[]]},
-                permanent,
-                5000,
-                worker,
-                [fog]},
+    Fog =
+        {fog, {fog, start_link, []},
+         permanent, 2000, worker, [fog]},
 
     {ok, {{one_for_one, 5, 10}, [Fog]}}.
 

@@ -4,5 +4,6 @@
  [{description, "Facebook Open Graph"},
   {vsn, git},
   {id, "fog"},
-  {applications, [kernel, stdlib]}]}.
+  {mod, {fog_app, []}},
+  {applications, [kernel, stdlib, sasl, lager, ibrowse, crypto, public_key, ssl]}]}.
 
