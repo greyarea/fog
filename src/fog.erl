@@ -3,6 +3,8 @@
 -module(fog).
 -behaviour(gen_server).
 
+-define(TIMEOUT, 30000).
+
 -export([
         start/0,
         start_link/0, 
@@ -73,6 +75,7 @@ handle_call({request, AccessToken, GraphPath, Params, HTTPMethod}, From, State) 
         [
             {is_ssl, true},
             {ssl_options, []},
+            {inactivity_timeout, ?TIMEOUT},
             {stream_to, self()}
         ]),
 
@@ -106,6 +109,19 @@ handle_info({ibrowse_async_headers, Id, RetCode, Headers}, State) ->
 
     {noreply, State#state { requests = NewRequests }};
 
+handle_info({ibrowse_async_response, Id, {error, Reason}}, State) ->
+    NewRequests = case lists:keytake(Id, 1, State#state.requests) of
+        false ->
+            error_logger:info_msg("Body error: Couldn't find ~p", [Id]), 
+            State#state.requests;
+        {value, Request, Rest} ->
+            {Id, From, _Props} = Request,
+            gen_server:reply(From, {error, Reason}),
+            Rest
+    end, 
+
+    {noreply, State#state { requests = NewRequests }};
+
 handle_info({ibrowse_async_response, Id, Body}, State) ->
     NewRequests = case lists:keyfind(Id, 1, State#state.requests) of
         false ->
@@ -133,7 +149,7 @@ handle_info({ibrowse_async_response_end, Id}, State) ->
                 "200" ->
                     gen_server:reply(From, {ok, Props});
                 Other ->
-                    gen_server:reply(From, {error, Other, Props})
+                    gen_server:reply(From, {http_error, Other, Props})
             end, 
 
             Rest
